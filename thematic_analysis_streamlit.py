@@ -859,29 +859,6 @@ def download_matplotlib_fig(fig, filename):
         )
 
 def download_plotly_fig(fig, filename):
-    col1, col2, col3 = st.columns(3)
-
-    for fmt, label, mime in [
-        ("png", "PNG", "image/png"),
-        ("pdf", "PDF", "application/pdf"),
-        ("svg", "SVG", "image/svg+xml"),
-    ]:
-        with locals()[f"col{['png','pdf','svg'].index(fmt)+1}"]:
-            try:
-                img_bytes = fig.to_image(format=fmt)
-                st.download_button(
-                    label=label,
-                    data=img_bytes,
-                    file_name=f"{filename}.{fmt}",
-                    mime=mime
-                )
-            except Exception as e:
-                st.warning(
-                    f"{label} download not available in this environment. "
-                    f"(Error: {e})"
-                )
-        )
-    def download_plotly_fig(fig, filename):
     """Safely download Plotly figures in Streamlit Cloud (no Chrome dependency)."""
     col1, col2, col3 = st.columns(3)
     columns = [col1, col2, col3]
@@ -906,7 +883,6 @@ def download_plotly_fig(fig, filename):
                     f"{label} download not available in this environment "
                     f"(Error: {str(e)})"
                 )
-
 
 def create_cooccurrence_network(codes_df, threshold=2):
     if codes_df.empty or len(codes_df) < 3:
@@ -2153,5 +2129,3 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
-
-
