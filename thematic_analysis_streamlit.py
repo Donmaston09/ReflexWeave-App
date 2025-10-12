@@ -1368,7 +1368,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                     com_b_counts = codes_df['com_b_category'].value_counts()
                     fig = px.pie(values=com_b_counts.values, names=com_b_counts.index,
                                title="COM-B Distribution")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     download_plotly_fig(fig, "com_b_distribution")
 
                 if 'source_type' in codes_df.columns:
@@ -1404,7 +1404,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                 threshold = st.slider("Co-occurrence threshold", 1, 5, 2)
                 network_fig = create_cooccurrence_network(codes_df, threshold)
                 if network_fig:
-                    st.plotly_chart(network_fig, use_container_width=True)
+                    st.plotly_chart(network_fig, width='stretch')
                     download_plotly_fig(network_fig, "code_network")
                 else:
                     st.info("Not enough connections to create a network graph.")
@@ -2130,3 +2130,4 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
+
