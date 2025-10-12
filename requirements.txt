@@ -14,4 +14,4 @@ pdfplumber
 reportlab
 kaleido
 openpyxl
-google-chrome-stable
+
