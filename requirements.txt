@@ -1,0 +1,15 @@
+streamlit
+pandas
+plotly
+networkx
+matplotlib
+wordcloud
+seaborn
+python-docx
+textblob
+numpy
+scikit-learn
+openai
+pdfplumber
+reportlab
+openpyxl
