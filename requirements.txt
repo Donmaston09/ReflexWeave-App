@@ -12,4 +12,5 @@ scikit-learn
 openai
 pdfplumber
 reportlab
+kaleido
 openpyxl
