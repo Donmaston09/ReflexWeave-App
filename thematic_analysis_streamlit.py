@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import networkx as nx
 import matplotlib.pyplot as plt
+from datetime import datetime
 import json
 import sqlite3
 import io
@@ -38,25 +39,6 @@ except ImportError:
 
 import seaborn as sns
 
-# SQLite date adapters for Python 3.12+ compatibility (fixes deprecation warnings)
-def adapt_date_iso(val):
-    return val.isoformat()
-
-def adapt_datetime_iso(val):
-    return val.isoformat()
-
-sqlite3.register_adapter(datetime.date, adapt_date_iso)
-sqlite3.register_adapter(datetime.datetime, adapt_datetime_iso)
-
-def convert_date(val):
-    return datetime.date.fromisoformat(val.decode())
-
-def convert_datetime(val):
-    return datetime.datetime.fromisoformat(val.decode())
-
-sqlite3.register_converter("date", convert_date)
-sqlite3.register_converter("datetime", convert_datetime)
-
 # Page configuration
 st.set_page_config(
     page_title="Reflexive Thematic Analysis Tool",
@@ -68,7 +50,7 @@ st.set_page_config(
 # Database setup with phase tracking - Enhanced with role and theme versioning
 @st.cache_resource
 def init_database():
-    conn = sqlite3.connect('reflexive_analysis.db', check_same_thread=False, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect('reflexive_analysis.db', check_same_thread=False)
     cursor = conn.cursor()
 
     # Transcripts table with participant categorization - Added role
@@ -877,42 +859,31 @@ def download_matplotlib_fig(fig, filename):
         )
 
 def download_plotly_fig(fig, filename):
-    # Detect Streamlit Cloud (headless, no Chrome for Kaleido)
-    if '/mount/src/' in os.getcwd():
-        st.warning("📱 On Streamlit Cloud: Image downloads disabled (requires Chrome). Screenshot charts or run locally for exports.")
-        return
-    
     col1, col2, col3 = st.columns(3)
-    try:
-        with col1:
-            img_bytes = fig.to_image(format="png")
-            st.download_button(
-                label="PNG",
-                data=img_bytes,
-                file_name=f"{filename}.png",
-                mime="image/png"
-            )
-        with col2:
-            img_bytes = fig.to_image(format="pdf")
-            st.download_button(
-                label="PDF",
-                data=img_bytes,
-                file_name=f"{filename}.pdf",
-                mime="application/pdf"
-            )
-        with col3:
-            img_bytes = fig.to_image(format="svg")
-            st.download_button(
-                label="SVG",
-                data=img_bytes,
-                file_name=f"{filename}.svg",
-                mime="image/svg+xml"
-            )
-    except Exception as e:
-        if "Chrome" in str(e) or "Kaleido" in str(e):
-            st.warning(f"🖼️ Image export failed (missing Chrome/Kaleido): {str(e)[:100]}... Run locally with Chrome installed.")
-        else:
-            st.error(f"Unexpected export error: {e}")
+    with col1:
+        img_bytes = fig.to_image(format="png")
+        st.download_button(
+            label="PNG",
+            data=img_bytes,
+            file_name=f"{filename}.png",
+            mime="image/png"
+        )
+    with col2:
+        img_bytes = fig.to_image(format="pdf")
+        st.download_button(
+            label="PDF",
+            data=img_bytes,
+            file_name=f"{filename}.pdf",
+            mime="application/pdf"
+        )
+    with col3:
+        img_bytes = fig.to_image(format="svg")
+        st.download_button(
+            label="SVG",
+            data=img_bytes,
+            file_name=f"{filename}.svg",
+            mime="image/svg+xml"
+        )
 
 def create_cooccurrence_network(codes_df, threshold=2):
     if codes_df.empty or len(codes_df) < 3:
@@ -1171,7 +1142,7 @@ if current_phase == 1:  # Phase 1+2: Familiarization & Initial Coding
                             role = code
                             default_id = code
 
-                    transcript_id = st.text_input("Transcript ID", value=default_id if participant_type != "Black Women" else "")
+                    transcript_id = st.text_input("Transcript ID", value=default_id if participant_type == "Healthcare Professionals" else "")
                     location = st.text_input("Location")
                     duration = st.text_input("Duration (e.g., 45 mins)")
                     status = st.selectbox("Status", ["New", "In Progress", "Coded"])
@@ -1397,7 +1368,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                     com_b_counts = codes_df['com_b_category'].value_counts()
                     fig = px.pie(values=com_b_counts.values, names=com_b_counts.index,
                                title="COM-B Distribution")
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                     download_plotly_fig(fig, "com_b_distribution")
 
                 if 'source_type' in codes_df.columns:
@@ -1433,7 +1404,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                 threshold = st.slider("Co-occurrence threshold", 1, 5, 2)
                 network_fig = create_cooccurrence_network(codes_df, threshold)
                 if network_fig:
-                    st.plotly_chart(network_fig, width='stretch')
+                    st.plotly_chart(network_fig, use_container_width=True)
                     download_plotly_fig(network_fig, "code_network")
                 else:
                     st.info("Not enough connections to create a network graph.")
@@ -1567,14 +1538,14 @@ elif current_phase == 4:
                 if len(ethnicity_counts) > 1:
                     df_eth = pd.DataFrame({'Ethnicity': ethnicity_counts.index, 'Count': ethnicity_counts.values})
                     fig1 = px.bar(df_eth, x='Ethnicity', y='Count', title="Participants by Ethnicity")
-                    st.plotly_chart(fig1, width='stretch')
+                    st.plotly_chart(fig1, use_container_width=True)
                     download_plotly_fig(fig1, "participants_ethnicity")
 
             if 'participant_type' in transcripts_df.columns:
                 type_counts = transcripts_df['participant_type'].value_counts()
                 fig2 = px.pie(values=type_counts.values, names=type_counts.index,
                             title="Black Women vs Healthcare Professionals")
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
                 download_plotly_fig(fig2, "participant_types")
 
             # HCP Role filter
@@ -1584,7 +1555,7 @@ elif current_phase == 4:
                     role_counts = hcp_df['role'].value_counts()
                     df_role = pd.DataFrame({'Role': role_counts.index, 'Count': role_counts.values})
                     fig3 = px.bar(df_role, x='Role', y='Count', title="HCP Roles Distribution")
-                    st.plotly_chart(fig3, width='stretch')
+                    st.plotly_chart(fig3, use_container_width=True)
                     download_plotly_fig(fig3, "hcp_roles")
 
         st.info("Detailed group comparisons will be enhanced as themes develop")
@@ -1658,7 +1629,7 @@ elif current_phase == 5:
                 cursor.execute('SELECT c.code_name FROM codes c JOIN theme_codes tc ON c.id = tc.code_id WHERE tc.theme_id = ?', (theme['id'],))
                 theme_codes = [row[0] for row in cursor.fetchall()]
                 draft_themes.append({
-                    "id": theme['id'],
+                    "id": theme['id'],  # Fixed: Include the database ID
                     "name": theme['theme_name'],
                     "description": theme['description'],
                     "codes": theme_codes,
@@ -1701,7 +1672,7 @@ elif current_phase == 5:
                             'theme_name': refined_name,
                             'description': refined_desc,
                             'com_b_primary': map_to_com_b(refined_name, refined_desc),
-                            'com_b_secondary': ''
+                            'com_b_secondary': ''  # Fixed: Include secondary (default empty)
                         }
                         try:
                             if save_as_new or themes_df.empty:
@@ -1784,7 +1755,7 @@ elif current_phase == 5:
                 title="Theme Validation Metrics"
             )
             fig.update_traces(textposition="top center")
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
             download_plotly_fig(fig, "theme_validation")
 
     with tab4:
@@ -1998,7 +1969,7 @@ elif current_phase == 7:
                         names='Ethnicity',
                         title="Participant Ethnicity Distribution"
                     )
-                    st.plotly_chart(fig1, width='stretch')
+                    st.plotly_chart(fig1, use_container_width=True)
                     download_plotly_fig(fig1, "ethnicity_distribution")
 
                 comparison_data = pd.DataFrame({
@@ -2012,7 +1983,7 @@ elif current_phase == 7:
                     x='Theme', y='Prevalence', color='Ethnicity',
                     title="Theme Prevalence by Ethnicity"
                 )
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
                 download_plotly_fig(fig2, "theme_prevalence_ethnicity")
 
         with col2:
@@ -2026,7 +1997,7 @@ elif current_phase == 7:
                     df_type, x='Type', y='Count',
                     title="Participants by Type"
                 )
-                st.plotly_chart(fig3, width='stretch')
+                st.plotly_chart(fig3, use_container_width=True)
                 download_plotly_fig(fig3, "participants_type")
 
                 # HCP Roles
@@ -2035,7 +2006,7 @@ elif current_phase == 7:
                     role_data = hcp_df['role'].value_counts()
                     df_role = pd.DataFrame({'Role': role_data.index, 'Count': role_data.values})
                     fig_role = px.bar(df_role, x='Role', y='Count', title="HCP Roles")
-                    st.plotly_chart(fig_role, width='stretch')
+                    st.plotly_chart(fig_role, use_container_width=True)
                     download_plotly_fig(fig_role, "hcp_roles_dashboard")
 
                 perspective_data = pd.DataFrame({
@@ -2049,7 +2020,7 @@ elif current_phase == 7:
                     x='Theme', y='Emphasis', color='Perspective',
                     title="Theme Emphasis by Participant Type"
                 )
-                st.plotly_chart(fig4, width='stretch')
+                st.plotly_chart(fig4, use_container_width=True)
                 download_plotly_fig(fig4, "theme_emphasis_perspective")
 
     with tab2:
@@ -2087,7 +2058,7 @@ elif current_phase == 7:
                 color='Theme', symbol='Participant',
                 title="Sentiment Analysis by Theme and Participant Type"
             )
-            st.plotly_chart(fig_sentiment, width='stretch')
+            st.plotly_chart(fig_sentiment, use_container_width=True)
             download_plotly_fig(fig_sentiment, "sentiment_analysis")
 
         with viz_col2:
@@ -2105,7 +2076,7 @@ elif current_phase == 7:
                 values='Frequency',
                 title="COM-B Framework Distribution"
             )
-            st.plotly_chart(fig_comb, width='stretch')
+            st.plotly_chart(fig_comb, use_container_width=True)
             download_plotly_fig(fig_comb, "com_b_distribution")
 
         st.markdown("#### Interactive Code Network")
@@ -2114,7 +2085,7 @@ elif current_phase == 7:
             network_threshold = st.slider("Network connection threshold:", 1, 5, 2)
             network_fig = create_cooccurrence_network(codes_df, network_threshold)
             if network_fig:
-                st.plotly_chart(network_fig, width='stretch')
+                st.plotly_chart(network_fig, use_container_width=True)
                 download_plotly_fig(network_fig, "interactive_code_network")
             else:
                 st.info("Not enough codes to create a network graph.")
@@ -2159,4 +2130,3 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
-
