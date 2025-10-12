@@ -860,13 +860,26 @@ def download_matplotlib_fig(fig, filename):
 
 def download_plotly_fig(fig, filename):
     col1, col2, col3 = st.columns(3)
-    with col1:
-        img_bytes = fig.to_image(format="png")
-        st.download_button(
-            label="PNG",
-            data=img_bytes,
-            file_name=f"{filename}.png",
-            mime="image/png"
+
+    for fmt, label, mime in [
+        ("png", "PNG", "image/png"),
+        ("pdf", "PDF", "application/pdf"),
+        ("svg", "SVG", "image/svg+xml"),
+    ]:
+        with locals()[f"col{['png','pdf','svg'].index(fmt)+1}"]:
+            try:
+                img_bytes = fig.to_image(format=fmt)
+                st.download_button(
+                    label=label,
+                    data=img_bytes,
+                    file_name=f"{filename}.{fmt}",
+                    mime=mime
+                )
+            except Exception as e:
+                st.warning(
+                    f"{label} download not available in this environment. "
+                    f"(Error: {e})"
+                )
         )
     with col2:
         img_bytes = fig.to_image(format="pdf")
@@ -2130,3 +2143,4 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
+
