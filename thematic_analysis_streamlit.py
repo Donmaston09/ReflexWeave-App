@@ -38,6 +38,28 @@ except ImportError:
     WORDCLOUD_AVAILABLE = False
 
 import seaborn as sns
+# --- Fix Kaleido Chrome path issue on Streamlit Cloud ---
+import os
+
+# Common Chrome paths used in Streamlit Cloud
+possible_paths = [
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome",
+]
+
+for path in possible_paths:
+    if os.path.exists(path):
+        os.environ["KALIEDO_CHROME_PATH"] = path
+        break
+
+# Try to register Chrome for Kaleido
+try:
+    import kaleido
+    kaleido.get_chrome_sync()
+except Exception as e:
+    print("⚠️ Kaleido Chrome setup warning:", e)
+# --------------------------------------------------------
 
 # Page configuration
 st.set_page_config(
@@ -2129,3 +2151,4 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
+
