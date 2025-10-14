@@ -41,24 +41,30 @@ import seaborn as sns
 # --- Fix Kaleido Chrome path issue on Streamlit Cloud ---
 import os
 
-# Common Chrome paths used in Streamlit Cloud
+# Common Chrome paths used in Streamlit Cloud (including bundled Kaleido path)
 possible_paths = [
     "/usr/bin/chromium",
     "/usr/bin/chromium-browser",
     "/usr/bin/google-chrome",
+    "/app/.plotly-kaleido/executable",  # Common bundled path after get_chrome_sync()
+    os.path.expanduser("~/.plotly-kaleido/executable"),  # User-local bundled path
 ]
 
+chrome_path = None
 for path in possible_paths:
     if os.path.exists(path):
-        os.environ["KALIEDO_CHROME_PATH"] = path
+        chrome_path = path
         break
 
-# Try to register Chrome for Kaleido
-try:
-    import kaleido
-    kaleido.get_chrome_sync()
-except Exception as e:
-    print("⚠️ Kaleido Chrome setup warning:", e)
+if chrome_path:
+    os.environ["KALEIDO_CHROME_PATH"] = chrome_path
+else:
+    # Try to download/register bundled Chrome for Kaleido (idempotent, safe to call multiple times)
+    try:
+        import kaleido
+        kaleido.get_chrome_sync()  # This downloads bundled Chrome if missing
+    except Exception as e:
+        print("⚠️ Kaleido Chrome setup warning:", e)
 # --------------------------------------------------------
 
 # Page configuration
@@ -2151,4 +2157,3 @@ st.caption(f"Analysis Progress: {len(phases_completed)}/6 phases completed")
 
 st.markdown("*Reflexive Thematic Analysis Tool for Breast Cancer Screening Disparities Research*")
 st.caption("Features: Phase-guided analysis, AI assistance, COM-B framework integration, Reflexive memo tracking, Audio transcription, Theme versioning, Fuzzy matching, Multi-format exports")
-
