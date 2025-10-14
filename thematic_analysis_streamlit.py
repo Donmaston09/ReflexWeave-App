@@ -859,31 +859,39 @@ def download_matplotlib_fig(fig, filename):
         )
 
 def download_plotly_fig(fig, filename):
+    # Check if running on Streamlit Cloud (or similar restricted env) to skip image gen
+    if 'streamlit' in os.environ.get('STREAMLIT_SERVER_HEADLESS', '') or os.environ.get('ST_LOADING_CACHE') == '1':
+        st.warning("Image downloads (PNG/PDF/SVG) are not supported on this hosted platform due to browser rendering limits. Use local run or screenshot the chart.")
+        return
+
     col1, col2, col3 = st.columns(3)
-    with col1:
-        img_bytes = fig.to_image(format="png")
-        st.download_button(
-            label="PNG",
-            data=img_bytes,
-            file_name=f"{filename}.png",
-            mime="image/png"
-        )
-    with col2:
-        img_bytes = fig.to_image(format="pdf")
-        st.download_button(
-            label="PDF",
-            data=img_bytes,
-            file_name=f"{filename}.pdf",
-            mime="application/pdf"
-        )
-    with col3:
-        img_bytes = fig.to_image(format="svg")
-        st.download_button(
-            label="SVG",
-            data=img_bytes,
-            file_name=f"{filename}.svg",
-            mime="image/svg+xml"
-        )
+    try:
+        with col1:
+            img_bytes = fig.to_image(format="png")
+            st.download_button(
+                label="PNG",
+                data=img_bytes,
+                file_name=f"{filename}.png",
+                mime="image/png"
+            )
+        with col2:
+            img_bytes = fig.to_image(format="pdf")
+            st.download_button(
+                label="PDF",
+                data=img_bytes,
+                file_name=f"{filename}.pdf",
+                mime="application/pdf"
+            )
+        with col3:
+            img_bytes = fig.to_image(format="svg")
+            st.download_button(
+                label="SVG",
+                data=img_bytes,
+                file_name=f"{filename}.svg",
+                mime="image/svg+xml"
+            )
+    except Exception as e:
+        st.warning(f"Image export failed (likely due to environment limits): {str(e)[:100]}... Interactive chart still available above.")
 
 def create_cooccurrence_network(codes_df, threshold=2):
     if codes_df.empty or len(codes_df) < 3:
