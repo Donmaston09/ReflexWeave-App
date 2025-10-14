@@ -39,6 +39,17 @@ except ImportError:
 
 import seaborn as sns
 
+# Environment detection helper
+def is_hosted_env():
+    """Detect if running in a hosted/headless environment (e.g., Streamlit Cloud, Codespaces)."""
+    return (
+        'streamlit-cloud' in os.environ.get('HOME', '').lower() or  # Streamlit Cloud
+        'codespaces' in os.environ.get('HOME', '').lower() or      # GitHub Codespaces
+        os.environ.get('ST_LOADING_CACHE') == '1' or               # Streamlit cache loading
+        'streamlit' in os.environ.get('STREAMLIT_SERVER_HEADLESS', '').lower() or
+        not os.system('which google-chrome > /dev/null 2>&1') == 0  # Quick Chrome check (0 = found)
+    )
+
 # Page configuration
 st.set_page_config(
     page_title="Reflexive Thematic Analysis Tool",
@@ -858,10 +869,75 @@ def download_matplotlib_fig(fig, filename):
             mime="image/svg+xml"
         )
 
+def download_matplotlib_alternative(fig_plotly, filename, chart_type="bar"):
+    """
+    Fallback: Convert Plotly fig to Matplotlib and provide downloads.
+    Supports basic bar/pie/line; extend as needed.
+    """
+    if is_hosted_env():
+        st.info("Matplotlib fallback available below.")
+    
+    # Convert Plotly to Matplotlib (simple cases)
+    fig, ax = plt.subplots(figsize=(10, 6))
+    if chart_type == "pie":
+        # For pie charts (e.g., COM-B dist)
+        if hasattr(fig_plotly, 'data') and len(fig_plotly.data) > 0:
+            labels = [trace.name for trace in fig_plotly.data]
+            values = [trace.values for trace in fig_plotly.data if hasattr(trace, 'values')][0]
+            ax.pie(values, labels=labels, autopct='%1.1f%%', colors=px.colors.qualitative.Set3)
+            ax.set_title(fig_plotly.layout.title.text)
+    elif chart_type == "bar":
+        # For bar charts (e.g., participant counts)
+        if hasattr(fig_plotly, 'data') and len(fig_plotly.data) > 0:
+            x = fig_plotly.data[0].x
+            y = fig_plotly.data[0].y
+            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'][:len(x)]  # Default colors
+            sns.barplot(x=x, y=y, ax=ax, palette=colors)
+            ax.set_title(fig_plotly.layout.title.text)
+            ax.set_xlabel(fig_plotly.layout.xaxis.title.text)
+            ax.set_ylabel(fig_plotly.layout.yaxis.title.text)
+    else:
+        st.warning(f"Unsupported chart type '{chart_type}' for Matplotlib fallback.")
+        return
+    
+    plt.tight_layout()
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        st.download_button(
+            label="PNG (Matplotlib)",
+            data=buf.getvalue(),
+            file_name=f"{filename}_matplotlib.png",
+            mime="image/png"
+        )
+    with col2:
+        buf = io.BytesIO()
+        fig.savefig(buf, format='pdf', bbox_inches='tight')
+        buf.seek(0)
+        st.download_button(
+            label="PDF (Matplotlib)",
+            data=buf.getvalue(),
+            file_name=f"{filename}_matplotlib.pdf",
+            mime="application/pdf"
+        )
+    with col3:
+        buf = io.BytesIO()
+        fig.savefig(buf, format='svg', bbox_inches='tight')
+        buf.seek(0)
+        st.download_button(
+            label="SVG (Matplotlib)",
+            data=buf.getvalue(),
+            file_name=f"{filename}_matplotlib.svg",
+            mime="image/svg+xml"
+        )
+    plt.close(fig)  # Clean up
+
 def download_plotly_fig(fig, filename):
-    # Check if running on Streamlit Cloud (or similar restricted env) to skip image gen
-    if 'streamlit' in os.environ.get('STREAMLIT_SERVER_HEADLESS', '') or os.environ.get('ST_LOADING_CACHE') == '1':
-        st.warning("Image downloads (PNG/PDF/SVG) are not supported on this hosted platform due to browser rendering limits. Use local run or screenshot the chart.")
+    if is_hosted_env():
+        st.warning("Image downloads (PNG/PDF/SVG) are not supported in this hosted environment due to missing Chrome/Kaleido. Use local run, screenshot the chart, or export via Matplotlib alternatives below.")
         return
 
     col1, col2, col3 = st.columns(3)
@@ -890,8 +966,13 @@ def download_plotly_fig(fig, filename):
                 file_name=f"{filename}.svg",
                 mime="image/svg+xml"
             )
+    except RuntimeError as e:
+        if "Kaleido" in str(e) or "Chrome" in str(e):
+            st.warning(f"Plotly export failed due to missing Chrome/Kaleido: {str(e)[:100]}... Install locally or use Matplotlib fallbacks.")
+        else:
+            st.error(f"Unexpected export error: {str(e)}")
     except Exception as e:
-        st.warning(f"Image export failed (likely due to environment limits): {str(e)[:100]}... Interactive chart still available above.")
+        st.warning(f"Image export failed (likely env limits): {str(e)[:100]}... Interactive chart still available above. Use screenshot or Matplotlib alternatives.")
 
 def create_cooccurrence_network(codes_df, threshold=2):
     if codes_df.empty or len(codes_df) < 3:
@@ -1056,6 +1137,10 @@ with st.sidebar:
     if api_key:
         st.session_state.api_key = api_key
         st.success("API key saved!")
+
+    # Hosted env warning
+    if is_hosted_env():
+        st.warning("🛠️ Hosted env detected (e.g., Streamlit Cloud). Plotly image exports disabled—use Matplotlib fallbacks or run locally for full downloads.")
 
     st.markdown("#### Phase Navigator")
 
@@ -1374,10 +1459,13 @@ elif current_phase == 3: # Phase 3: Refining Codes
 
                 if 'com_b_category' in codes_df.columns:
                     com_b_counts = codes_df['com_b_category'].value_counts()
-                    fig = px.pie(values=com_b_counts.values, names=com_b_counts.index,
-                               title="COM-B Distribution")
-                    st.plotly_chart(fig, use_container_width=True)
-                    download_plotly_fig(fig, "com_b_distribution")
+                    if len(com_b_counts) > 0:
+                        fig, ax = plt.subplots(figsize=(8, 6))
+                        ax.pie(com_b_counts.values, labels=com_b_counts.index, autopct='%1.1f%%', colors=['lightcoral', 'lightgreen', 'lightblue', 'lightyellow'])
+                        ax.set_title("COM-B Distribution")
+                        st.pyplot(fig)
+                        download_matplotlib_fig(fig, "com_b_distribution")
+                        plt.close(fig)
 
                 if 'source_type' in codes_df.columns:
                     source_counts = codes_df['source_type'].value_counts()
@@ -1551,10 +1639,13 @@ elif current_phase == 4:
 
             if 'participant_type' in transcripts_df.columns:
                 type_counts = transcripts_df['participant_type'].value_counts()
-                fig2 = px.pie(values=type_counts.values, names=type_counts.index,
-                            title="Black Women vs Healthcare Professionals")
-                st.plotly_chart(fig2, use_container_width=True)
-                download_plotly_fig(fig2, "participant_types")
+                if len(type_counts) > 0:
+                    fig, ax = plt.subplots(figsize=(8, 6))
+                    ax.pie(type_counts.values, labels=type_counts.index, autopct='%1.1f%%', colors=plt.cm.Set3.colors)
+                    ax.set_title("Black Women vs Healthcare Professionals")
+                    st.pyplot(fig)
+                    download_matplotlib_fig(fig, "participant_types")
+                    plt.close(fig)
 
             # HCP Role filter
             if 'role' in transcripts_df.columns:
