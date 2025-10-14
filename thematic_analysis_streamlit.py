@@ -38,14 +38,6 @@ except ImportError:
     WORDCLOUD_AVAILABLE = False
 
 import seaborn as sns
-# --- Simplified Kaleido Setup for Streamlit Cloud (Pinned Versions) ---
-try:
-    import kaleido
-    # For Kaleido 0.2.1, this ensures bundled Chrome is used (no download needed)
-    kaleido.__version__  # Just verify import
-except Exception as e:
-    pass
-# --------------------------------------------------------
 
 # Page configuration
 st.set_page_config(
@@ -867,30 +859,31 @@ def download_matplotlib_fig(fig, filename):
         )
 
 def download_plotly_fig(fig, filename):
-    """Safely download Plotly figures in Streamlit Cloud (no Chrome dependency)."""
     col1, col2, col3 = st.columns(3)
-    columns = [col1, col2, col3]
-    formats = [
-        ("png", "PNG", "image/png"),
-        ("pdf", "PDF", "application/pdf"),
-        ("svg", "SVG", "image/svg+xml"),
-    ]
-
-    for (fmt, label, mime), col in zip(formats, columns):
-        with col:
-            try:
-                img_bytes = fig.to_image(format=fmt)
-                st.download_button(
-                    label=label,
-                    data=img_bytes,
-                    file_name=f"{filename}.{fmt}",
-                    mime=mime
-                )
-            except Exception as e:
-                st.warning(
-                    f"{label} download not available in this environment "
-                    f"(Error: {str(e)})"
-                )
+    with col1:
+        img_bytes = fig.to_image(format="png")
+        st.download_button(
+            label="PNG",
+            data=img_bytes,
+            file_name=f"{filename}.png",
+            mime="image/png"
+        )
+    with col2:
+        img_bytes = fig.to_image(format="pdf")
+        st.download_button(
+            label="PDF",
+            data=img_bytes,
+            file_name=f"{filename}.pdf",
+            mime="application/pdf"
+        )
+    with col3:
+        img_bytes = fig.to_image(format="svg")
+        st.download_button(
+            label="SVG",
+            data=img_bytes,
+            file_name=f"{filename}.svg",
+            mime="image/svg+xml"
+        )
 
 def create_cooccurrence_network(codes_df, threshold=2):
     if codes_df.empty or len(codes_df) < 3:
@@ -1375,7 +1368,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                     com_b_counts = codes_df['com_b_category'].value_counts()
                     fig = px.pie(values=com_b_counts.values, names=com_b_counts.index,
                                title="COM-B Distribution")
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                     download_plotly_fig(fig, "com_b_distribution")
 
                 if 'source_type' in codes_df.columns:
@@ -1411,7 +1404,7 @@ elif current_phase == 3: # Phase 3: Refining Codes
                 threshold = st.slider("Co-occurrence threshold", 1, 5, 2)
                 network_fig = create_cooccurrence_network(codes_df, threshold)
                 if network_fig:
-                    st.plotly_chart(network_fig, width='stretch')
+                    st.plotly_chart(network_fig, use_container_width=True)
                     download_plotly_fig(network_fig, "code_network")
                 else:
                     st.info("Not enough connections to create a network graph.")
@@ -1545,14 +1538,14 @@ elif current_phase == 4:
                 if len(ethnicity_counts) > 1:
                     df_eth = pd.DataFrame({'Ethnicity': ethnicity_counts.index, 'Count': ethnicity_counts.values})
                     fig1 = px.bar(df_eth, x='Ethnicity', y='Count', title="Participants by Ethnicity")
-                    st.plotly_chart(fig1, width='stretch')
+                    st.plotly_chart(fig1, use_container_width=True)
                     download_plotly_fig(fig1, "participants_ethnicity")
 
             if 'participant_type' in transcripts_df.columns:
                 type_counts = transcripts_df['participant_type'].value_counts()
                 fig2 = px.pie(values=type_counts.values, names=type_counts.index,
                             title="Black Women vs Healthcare Professionals")
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
                 download_plotly_fig(fig2, "participant_types")
 
             # HCP Role filter
@@ -1562,7 +1555,7 @@ elif current_phase == 4:
                     role_counts = hcp_df['role'].value_counts()
                     df_role = pd.DataFrame({'Role': role_counts.index, 'Count': role_counts.values})
                     fig3 = px.bar(df_role, x='Role', y='Count', title="HCP Roles Distribution")
-                    st.plotly_chart(fig3, width='stretch')
+                    st.plotly_chart(fig3, use_container_width=True)
                     download_plotly_fig(fig3, "hcp_roles")
 
         st.info("Detailed group comparisons will be enhanced as themes develop")
@@ -1762,7 +1755,7 @@ elif current_phase == 5:
                 title="Theme Validation Metrics"
             )
             fig.update_traces(textposition="top center")
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
             download_plotly_fig(fig, "theme_validation")
 
     with tab4:
@@ -1976,7 +1969,7 @@ elif current_phase == 7:
                         names='Ethnicity',
                         title="Participant Ethnicity Distribution"
                     )
-                    st.plotly_chart(fig1, width='stretch')
+                    st.plotly_chart(fig1, use_container_width=True)
                     download_plotly_fig(fig1, "ethnicity_distribution")
 
                 comparison_data = pd.DataFrame({
@@ -1990,7 +1983,7 @@ elif current_phase == 7:
                     x='Theme', y='Prevalence', color='Ethnicity',
                     title="Theme Prevalence by Ethnicity"
                 )
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
                 download_plotly_fig(fig2, "theme_prevalence_ethnicity")
 
         with col2:
@@ -2004,7 +1997,7 @@ elif current_phase == 7:
                     df_type, x='Type', y='Count',
                     title="Participants by Type"
                 )
-                st.plotly_chart(fig3, width='stretch')
+                st.plotly_chart(fig3, use_container_width=True)
                 download_plotly_fig(fig3, "participants_type")
 
                 # HCP Roles
@@ -2013,7 +2006,7 @@ elif current_phase == 7:
                     role_data = hcp_df['role'].value_counts()
                     df_role = pd.DataFrame({'Role': role_data.index, 'Count': role_data.values})
                     fig_role = px.bar(df_role, x='Role', y='Count', title="HCP Roles")
-                    st.plotly_chart(fig_role, width='stretch')
+                    st.plotly_chart(fig_role, use_container_width=True)
                     download_plotly_fig(fig_role, "hcp_roles_dashboard")
 
                 perspective_data = pd.DataFrame({
@@ -2027,7 +2020,7 @@ elif current_phase == 7:
                     x='Theme', y='Emphasis', color='Perspective',
                     title="Theme Emphasis by Participant Type"
                 )
-                st.plotly_chart(fig4, width='stretch')
+                st.plotly_chart(fig4, use_container_width=True)
                 download_plotly_fig(fig4, "theme_emphasis_perspective")
 
     with tab2:
@@ -2065,7 +2058,7 @@ elif current_phase == 7:
                 color='Theme', symbol='Participant',
                 title="Sentiment Analysis by Theme and Participant Type"
             )
-            st.plotly_chart(fig_sentiment, width='stretch')
+            st.plotly_chart(fig_sentiment, use_container_width=True)
             download_plotly_fig(fig_sentiment, "sentiment_analysis")
 
         with viz_col2:
@@ -2083,7 +2076,7 @@ elif current_phase == 7:
                 values='Frequency',
                 title="COM-B Framework Distribution"
             )
-            st.plotly_chart(fig_comb, width='stretch')
+            st.plotly_chart(fig_comb, use_container_width=True)
             download_plotly_fig(fig_comb, "com_b_distribution")
 
         st.markdown("#### Interactive Code Network")
@@ -2092,7 +2085,7 @@ elif current_phase == 7:
             network_threshold = st.slider("Network connection threshold:", 1, 5, 2)
             network_fig = create_cooccurrence_network(codes_df, network_threshold)
             if network_fig:
-                st.plotly_chart(network_fig, width='stretch')
+                st.plotly_chart(network_fig, use_container_width=True)
                 download_plotly_fig(network_fig, "interactive_code_network")
             else:
                 st.info("Not enough codes to create a network graph.")
